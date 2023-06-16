@@ -1,1 +1,1 @@
-Put code in this folder. 
+Put code in this folder. Shared and individual code in respective folders to manage any merging issues.
