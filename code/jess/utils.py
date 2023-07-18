@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 
+import statsmodels.api as sm
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
@@ -36,6 +37,28 @@ def update_summary(
         "model_name": model_name,
         "w_sdoh": w_sdoh,
         "group": group,
+        "r2": r2,
+        "mse": mse,
+        "feature_names": feature_names_str,
+    }
+
+    # Append the new row to the summary DataFrame
+    summary = pd.concat([summary, pd.DataFrame(new_row, index=[0])], ignore_index=True)
+
+    return summary
+
+
+def update_summary_v2(model_name, race, r2, mse, feature_names_list, summary=None):
+    # If no summary provided, create a new DataFrame
+    if summary is None:
+        summary = pd.DataFrame(
+            columns=["model_name", "ract", "r2", "mse", "feature_names"]
+        )
+    feature_names_str = ", ".join(feature_names_list)
+    # Create a new row with the provided values
+    new_row = {
+        "model_name": model_name,
+        "race": race,
         "r2": r2,
         "mse": mse,
         "feature_names": feature_names_str,
@@ -84,7 +107,7 @@ def process_features(df, numeric_cols=None, cat_cols=None):
 
     if cat_cols is not None:
         X_cat = df[cat_cols]
-        X_encoded = pd.get_dummies(X_cat, drop_first=True)
+        X_encoded = pd.get_dummies(X_cat, drop_first=True, dtype=int)
     else:
         X_encoded = pd.DataFrame()
 
@@ -99,6 +122,7 @@ def process_features(df, numeric_cols=None, cat_cols=None):
 def fit_linear_model(X, y, model_name, group, sdoh, summary_table=None):
     """
     Quick fx for fitting a linear model w/ train test split
+    using the sk learn linear
 
     params
     ------
@@ -123,6 +147,10 @@ def fit_linear_model(X, y, model_name, group, sdoh, summary_table=None):
         Table of model results for test fit
     """
 
+    # make sure indices are set up correctly
+    X.reset_index(drop=True, inplace=True)
+    y.reset_index(drop=True, inplace=True)
+
     # Create train/test splits
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42
@@ -146,3 +174,103 @@ def fit_linear_model(X, y, model_name, group, sdoh, summary_table=None):
     )
 
     return linear_model, summary_table
+
+
+def fit_linear_model_sm(X, y, model_name, race=None, summary_table=None):
+    """
+    Code to fit a linear model using statsmodels OLS
+    to allow for better summary analysis and significance
+    testing of the features
+    """
+
+    # make sure indices are set up correctly
+    X.reset_index(drop=True, inplace=True)
+    y.reset_index(drop=True, inplace=True)
+
+    # Create train/test splits
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+
+    # Add constant term to the design matrix for intercept estimation
+    X_train = sm.add_constant(X_train)
+
+    # Create an instance of the OLS model & fit to train
+    linear_model = sm.OLS(y_train, X_train)
+    linear_model = linear_model.fit()
+
+    # Add constant term to the test data
+    X_test = sm.add_constant(X_test)
+
+    # Predict using the trained model
+    y_pred = linear_model.predict(X_test)
+
+    # Get statistics on the model performance
+    mse = mean_squared_error(y_test, y_pred)
+    r2 = r2_score(y_test, y_pred)
+
+    print(f"{model_name} test mse: {np.round(mse,3)}, r2: {np.round(r2, 3)}")
+
+    summary_table = update_summary_v2(
+        model_name, race, r2, mse, X.columns, summary=summary_table
+    )
+
+    summary = linear_model.summary()
+
+    return linear_model, summary
+
+
+def get_significant_variables(model):
+    """
+    Function to extract the significant variables from a fitted
+    statsmodels linear regression model.
+    """
+
+    # Extract the p-values from the summary table
+    p_values = model.pvalues[1:]
+
+    # Extract the va riable names from the summary table
+    variable_names = model.params.index[1:]
+
+    # Create a boolean array indicating significant variables (p-value < 0.05)
+    significant_variables = p_values < 0.05
+
+    # Get the names of the significant variables
+    significant_variable_names = variable_names[significant_variables]
+
+    return significant_variable_names
+
+
+def plot_feature_weights_horizontal_sm(model, color_sig=True):
+    """
+    Plots the feature weights of a linear model
+    from stas model in a horizontal bar plot.
+    """
+
+    # Get the feature names and corresponding coefficients
+    feature_names = model.params.index[1:]  # Exclude the bias term
+    coefficients = model.params[1:]  # Exclude the bias term
+
+    # # Sort feature names and coefficients based on absolute coefficient values
+    sorted_indices = np.argsort(np.abs(coefficients))
+    feature_names_sorted = feature_names[sorted_indices]
+    coefficients_sorted = coefficients[sorted_indices]
+
+    if color_sig:
+        # Get the significant variables
+        significant_variables = get_significant_variables(model)
+        # Set the color for significant and non-significant variables
+        colors = [
+            "cornflowerblue" if var in significant_variables else "gray"
+            for var in feature_names
+        ]
+        colors = [colors[i] for i in sorted_indices]
+    else:
+        colors = "gray"
+
+    # Plot the feature weights
+    fig, ax = plt.subplots()
+    ax.barh(feature_names_sorted, coefficients_sorted, color=colors)
+
+    # Set labels and title
+    ax.set_xlabel("Coefficient")
+    ax.set_ylabel("Feature")
+    ax.set_title("Feature Weights")
