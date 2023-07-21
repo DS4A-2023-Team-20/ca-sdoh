@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
+import seaborn as sns
 
 import statsmodels.api as sm
 from sklearn.preprocessing import StandardScaler
@@ -239,12 +240,14 @@ def get_significant_variables(model):
     return significant_variable_names
 
 
-def plot_feature_weights_horizontal_sm(model, color_sig=True):
+def plot_feature_weights_horizontal_sm(
+    model, ax=None, title="Feature Weights", color="cornflowerblue", color_sig=True
+):
     """
     Plots the feature weights of a linear model
     from stas model in a horizontal bar plot.
     """
-
+    ax
     # Get the feature names and corresponding coefficients
     feature_names = model.params.index[1:]  # Exclude the bias term
     coefficients = model.params[1:]  # Exclude the bias term
@@ -259,18 +262,55 @@ def plot_feature_weights_horizontal_sm(model, color_sig=True):
         significant_variables = get_significant_variables(model)
         # Set the color for significant and non-significant variables
         colors = [
-            "cornflowerblue" if var in significant_variables else "gray"
-            for var in feature_names
+            color if var in significant_variables else "gray" for var in feature_names
         ]
         colors = [colors[i] for i in sorted_indices]
     else:
         colors = "gray"
 
     # Plot the feature weights
-    fig, ax = plt.subplots()
+    if ax == None:
+        fig, ax = plt.subplots()
     ax.barh(feature_names_sorted, coefficients_sorted, color=colors)
 
     # Set labels and title
     ax.set_xlabel("Coefficient")
     ax.set_ylabel("Feature")
-    ax.set_title("Feature Weights")
+    ax.set_title(title)
+
+
+def plot_single_model_results(results_df, ax, palette="Set2"):
+    sns.boxplot(
+        data=results_df, x="model_name", y="rmse", width=0.5, ax=ax[0], palette=palette
+    )
+    sns.pointplot(
+        data=results_df,
+        x="model_name",
+        y="rmse",
+        color="black",
+        join=False,
+        ax=ax[0],
+    )
+
+    sns.boxplot(
+        data=results_df, x="model_name", y="r2", width=0.5, ax=ax[1], palette=palette
+    )
+    sns.pointplot(
+        data=results_df,
+        x="model_name",
+        y="r2",
+        color="black",
+        join=False,
+        ax=ax[1],
+    )
+
+    ax[0].set(
+        ylabel="Error (RMSE)",
+        xlabel="",
+        title=f"{results_df.model_type.iloc[0]} Model Error",
+    )
+    ax[1].set(
+        ylabel="Fit (Adj. $R^2$)",
+        xlabel="",
+        title=f"{results_df.model_type.iloc[0]} Model Fit",
+    )
