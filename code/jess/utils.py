@@ -8,6 +8,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error, r2_score
+from scipy.stats import f_oneway
 
 
 def plot_linear_weights(X, model):
@@ -309,8 +310,64 @@ def plot_single_model_results(results_df, ax, palette="Set2"):
         xlabel="",
         title=f"{results_df.model_type.iloc[0]} Model Error",
     )
+    if results_df.model_type.iloc[0] == "LM":
+        y_label = "Goodness of Fit (Adj. $R^2$)"
+    else:
+        y_label = "Goodness of Fit ($R^2$)"
+
     ax[1].set(
-        ylabel="Fit (Adj. $R^2$)",
+        ylabel=y_label,
         xlabel="",
         title=f"{results_df.model_type.iloc[0]} Model Fit",
     )
+
+
+def plot_rf_importances(model, X, ax=None, color="cornflowerblue", title=""):
+    """Plot the feature importances for a random forest model"""
+    importances = model.feature_importances_
+
+    # Create a DataFrame to show feature importance
+    feature_importance_df = pd.DataFrame(
+        {"feature": X.columns, "importance": importances}
+    )
+
+    # Sort the features by importance (high to low order)
+    feature_importance_df = feature_importance_df.sort_values(
+        by="importance", ascending=True
+    )
+
+    # Plot the feature importances
+    if ax == None:
+        fig, ax = plt.subplots()
+
+    ax.barh(
+        feature_importance_df.feature, feature_importance_df.importance, color=color
+    )
+
+    # Set labels and title
+    ax.set_xlabel("Importance")
+    ax.set_ylabel("Feature")
+    ax.set_title(title)
+
+    return None
+
+
+def run_mse_r2_sig_test(results_df):
+    _, r2_p_value = f_oneway(
+        results_df.query("model_name == 'Base'")["r2"],
+        results_df.query("model_name == 'Base + Race 1'")["r2"],
+        results_df.query("model_name == 'Base + Race 2'")["r2"],
+    )
+
+    _, rmse_p_value = f_oneway(
+        results_df.query("model_name == 'Base'")["rmse"],
+        results_df.query("model_name == 'Base + Race 1'")["rmse"],
+        results_df.query("model_name == 'Base + Race 2'")["rmse"],
+    )
+    if r2_p_value < 0.05:
+        print("r2 is significant")
+    print(f"r2 p-value: {r2_p_value}")
+
+    if rmse_p_value < 0.05:
+        print("rmse is significant")
+    print(f"rmse p-value: {rmse_p_value}")
