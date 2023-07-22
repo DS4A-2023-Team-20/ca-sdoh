@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import seaborn as sns
+from pathlib import Path
 
 import statsmodels.api as sm
 from sklearn.preprocessing import StandardScaler
@@ -9,6 +10,9 @@ from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error, r2_score
 from scipy.stats import f_oneway
+
+RESULTS_PATH = Path("/Users/jessbreda/Desktop/github/ca-sdoh/code/jess/results")
+DM_PATH = Path("/Users/jessbreda/Desktop/github/ca-sdoh/code/jess/design_matrices")
 
 
 def plot_linear_weights(X, model):
@@ -371,3 +375,19 @@ def run_mse_r2_sig_test(results_df):
     if rmse_p_value < 0.05:
         print("rmse is significant")
     print(f"rmse p-value: {rmse_p_value}")
+
+
+def get_rf_importance_df(model, X, condition):
+    importances = model.feature_importances_
+    # Create a DataFrame to show feature importance
+    feature_importance_df = pd.DataFrame(
+        {
+            "feature": X.columns,
+            "importance": importances,
+            "condition": [condition] * len(X.columns),
+        }
+    )
+
+    feature_importance_df.to_csv(
+        RESULTS_PATH / f"rf_{condition}_feature_importances.csv", index=False
+    )

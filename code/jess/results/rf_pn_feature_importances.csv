@@ -1,0 +1,14 @@
+feature,importance,condition
+beneficiary_avg_age,0.07298101187032718,pn
+pct_female,0.032938209464938625,pn
+pct_medicare_medicaid,0.1401523405047847,pn
+pct_alzheimers,0.07100476036381835,pn
+pct_congestive_heart_failure,0.05962017185493756,pn
+pct_copd,0.06022342881902147,pn
+pct_depression,0.03721734853718453,pn
+pct_diabetes,0.1615200964233332,pn
+pct_ischemic_heart_disease,0.05666091804138535,pn
+pct_arthritis,0.041604438675264824,pn
+pct_psychotic_disorders,0.12170219504417565,pn
+pct_stroke,0.06624251160128385,pn
+pct_non_white,0.07813256879954482,pn
